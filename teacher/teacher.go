@@ -24,10 +24,12 @@ func GetTeachers(c *fiber.Ctx) error {
 	teachers := []Teacher{}
 	teachersFiltered := []Teacher{}
 	err := database.DBConn.Preload("UserInfo.User").Find(&teachers).Error
+	userClaim := user.GetUserInfoFromJWTClaim(c)
 
 	if err == nil {
 		for _, teacher := range teachers {
-			if teacher.UserInfo.User.ID != 0 {
+			if teacher.UserInfo.User.ID != 0 ||
+				userClaim.User.Role == "Admin" {
 				teachersFiltered = append(teachersFiltered, teacher)
 			}
 		}
@@ -43,9 +45,11 @@ func GetTeacher(c *fiber.Ctx) error {
 	teacher := new(Teacher)
 	teacherFiltered := new(Teacher)
 	err := database.DBConn.Preload("UserInfo.User").First(&teacher, c.Params("id")).Error
+	userClaim := user.GetUserInfoFromJWTClaim(c)
 
 	if err == nil {
-		if teacher.UserInfo.User.ID != 0 {
+		if teacher.UserInfo.User.ID != 0 ||
+			userClaim.User.Role == "Admin" {
 			teacherFiltered = teacher
 		}
 
