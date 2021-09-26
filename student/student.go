@@ -9,30 +9,66 @@ import (
 
 	"github.com/JohnRebellion/go-utils/database"
 	fiberUtils "github.com/JohnRebellion/go-utils/fiber"
+	"github.com/JohnRebellion/go-utils/passwordHashing"
 )
 
 // Student ...
 type Student struct {
 	gorm.Model `json:"-"`
 	ID         uint            `json:"id" gorm:"primarykey"`
-	UserID     uint            `json:"-" gorm:"unique"`
-	User       user.User       `json:"user"`
+	UserInfoID uint            `json:"-" gorm:"unique"`
+	UserInfo   user.UserInfo   `json:"userInfo" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	SectionID  uint            `json:"-"`
-	Section    section.Section `json:"section"`
+	Section    section.Section `json:"section" gorm:"constraint:OnDelete:SET NULL;"`
+	Guardian   Guardian        `json:"guardian" gorm:"embedded"`
+}
+
+// Guardian
+type Guardian struct {
+	Name          string `json:"name"`
+	ContactNumber string `json:"contactNumber"`
 }
 
 // GetStudents ...
 func GetStudents(c *fiber.Ctx) error {
 	students := []Student{}
-	database.DBConn.Preload("Section").Preload("User").Find(&students)
-	return c.JSON(students)
+	studentsFiltered := []Student{}
+	err := database.DBConn.Preload("Section").Preload("UserInfo.User").Find(&students).Error
+	userClaim := user.GetUserInfoFromJWTClaim(c)
+
+	if err == nil {
+		for _, student := range students {
+			if student.Section.ID != 0 &&
+				student.UserInfo.User.ID != 0 ||
+				userClaim.User.Role == "Admin" {
+				studentsFiltered = append(studentsFiltered, student)
+			}
+		}
+
+		err = c.JSON(studentsFiltered)
+	}
+
+	return err
 }
 
 // GetStudent ...
 func GetStudent(c *fiber.Ctx) error {
 	student := new(Student)
-	database.DBConn.Preload("Section").Preload("User").First(&student, c.Params("id"))
-	return c.JSON(&student)
+	studentFiltered := new(Student)
+	err := database.DBConn.Preload("Section").Preload("UserInfo.User").First(&student, c.Params("id")).Error
+	userClaim := user.GetUserInfoFromJWTClaim(c)
+
+	if err == nil {
+		if student.Section.ID != 0 &&
+			student.UserInfo.User.ID != 0 ||
+			userClaim.User.Role == "Admin" {
+			studentFiltered = student
+		}
+
+		err = c.JSON(&studentFiltered)
+	}
+
+	return err
 }
 
 // NewStudent ...
@@ -40,8 +76,16 @@ func NewStudent(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	student := new(Student)
 	fiberUtils.ParseBody(&student)
-	database.DBConn.Create(&student)
-	return fiberUtils.SendSuccessResponse("Created a new student successfully")
+	var err error
+	student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
+
+	if err == nil {
+		if database.DBConn.Create(&student).Error == nil {
+			return fiberUtils.SendSuccessResponse("Created a new student successfully")
+		}
+	}
+
+	return err
 }
 
 // UpdateStudent ...
@@ -49,13 +93,26 @@ func UpdateStudent(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	student := new(Student)
 	fiberUtils.ParseBody(&student)
-	database.DBConn.Updates(&student)
-	return fiberUtils.SendSuccessResponse("Updated a student successfully")
+	var err error
+	student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
+
+	if err == nil {
+		if database.DBConn.Updates(&student).Error == nil {
+			return fiberUtils.SendSuccessResponse("Updated a student successfully")
+		}
+	}
+
+	return err
 }
 
 // DeleteStudent ...
 func DeleteStudent(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	database.DBConn.Delete(&Student{}, c.Params("id"))
-	return fiberUtils.SendSuccessResponse("Deleted a student successfully")
+	err := database.DBConn.Delete(&Student{}, c.Params("id")).Error
+
+	if err == nil {
+		return fiberUtils.SendSuccessResponse("Deleted a student successfully")
+	}
+
+	return err
 }

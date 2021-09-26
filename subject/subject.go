@@ -18,15 +18,25 @@ type Subject struct {
 // GetSubjects ...
 func GetSubjects(c *fiber.Ctx) error {
 	subjects := []Subject{}
-	database.DBConn.Find(&subjects)
-	return c.JSON(subjects)
+	err := database.DBConn.Find(&subjects).Error
+
+	if err == nil {
+		err = c.JSON(subjects)
+	}
+
+	return err
 }
 
 // GetSubject ...
 func GetSubject(c *fiber.Ctx) error {
 	subject := new(Subject)
-	database.DBConn.First(&subject, c.Params("id"))
-	return c.JSON(&subject)
+	err := database.DBConn.First(&subject, c.Params("id")).Error
+
+	if err == nil {
+		err = c.JSON(&subject)
+	}
+
+	return err
 }
 
 // NewSubject ...
@@ -34,8 +44,13 @@ func NewSubject(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	subject := new(Subject)
 	fiberUtils.ParseBody(&subject)
-	database.DBConn.Create(&subject)
-	return fiberUtils.SendSuccessResponse("Created a new subject successfully")
+	err := database.DBConn.Create(&subject).Error
+
+	if err == nil {
+		return fiberUtils.SendSuccessResponse("Created a new subject successfully")
+	}
+
+	return err
 }
 
 // UpdateSubject ...
@@ -43,13 +58,23 @@ func UpdateSubject(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	subject := new(Subject)
 	fiberUtils.ParseBody(&subject)
-	database.DBConn.Updates(&subject)
-	return fiberUtils.SendSuccessResponse("Updated a subject successfully")
+	err := database.DBConn.Updates(&subject).Error
+
+	if err == nil {
+		return fiberUtils.SendSuccessResponse("Updated a subject successfully")
+	}
+
+	return err
 }
 
 // DeleteSubject ...
 func DeleteSubject(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	database.DBConn.Delete(&Subject{}, c.Params("id"))
-	return fiberUtils.SendSuccessResponse("Deleted a subject successfully")
+	err := database.DBConn.Delete(&Subject{}, c.Params("id")).Error
+
+	if err == nil {
+		return fiberUtils.SendSuccessResponse("Deleted a subject successfully")
+	}
+
+	return err
 }

@@ -3,13 +3,17 @@ package main
 import (
 	"fmt"
 	"log"
+	"onedums/anouncement"
 	"onedums/envRouting"
+	"onedums/learningMaterial"
 	"onedums/quiz"
 	"onedums/section"
 	"onedums/student"
 	"onedums/subject"
 	"onedums/teacher"
+	"onedums/twilioService"
 	"onedums/user"
+	"os"
 	"time"
 
 	"github.com/JohnRebellion/go-utils/database"
@@ -23,6 +27,8 @@ import (
 
 func main() {
 	envRouting.LoadEnv()
+	makeDirectoryIfNotExists("files/learningMaterials")
+	twilioService.NewClient(envRouting.TwilioAccountSID, envRouting.TwilioAuthenticationToken, envRouting.TwilioPhoneNumber)
 	// database.SQLiteConnect(envRouting.SQLiteFilename)
 	database.MySQLConnect(envRouting.MySQLUsername, envRouting.MySQLPassword, envRouting.MySQLHost, envRouting.DatabaseName)
 	err := database.DBConn.AutoMigrate(
@@ -34,6 +40,8 @@ func main() {
 		&user.UserInfo{},
 		&quiz.Quiz{},
 		&quiz.QuizResult{},
+		&anouncement.Anouncement{},
+		&learningMaterial.LearningMaterial{},
 	)
 
 	var existingUserInfo user.UserInfo
@@ -60,67 +68,86 @@ func main() {
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
-	endpoint := app.Group("/api/v1/", logger.New())
-	userInfoEndpoint := endpoint.Group("/userInfo", logger.New())
+	app.Use(logger.New())
+	app.Static("/", envRouting.StaticWebLocation)
+	app.Static("/learningMaterials", "files/learningMaterials")
+	setupPublicRoutes(app)
+	setupPrivateRoutes(app)
+
+	err = app.Listen(fmt.Sprintf(":%s", envRouting.Port))
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+}
+
+func setupPublicRoutes(app *fiber.App) {
+	apiEndpoint := app.Group("/api")
+	v1Endpoint := apiEndpoint.Group("/v1")
+	userInfoEndpoint := v1Endpoint.Group("/userInfo")
 	userInfoEndpoint.Post("/", user.NewUserInfo)
 	userInfoEndpoint.Post("/auth", user.Authenticate)
+}
 
-	app.Static("/", envRouting.StaticWebLocation)
+func setupPrivateRoutes(app *fiber.App) {
 	app.Use(fiberUtils.AuthenticationMiddleware(fiberUtils.JWTConfig{
 		Duration:     15 * time.Minute,
 		CookieMaxAge: 15 * 60,
 		SetCookies:   true,
 		SecretKey:    []byte(envRouting.SecretKey),
 	}))
+	apiEndpoint := app.Group("/api")
+	v1Endpoint := apiEndpoint.Group("/v1")
+	userInfoEndpoint := v1Endpoint.Group("/userInfo")
 
 	userInfoEndpoint.Get("/:id", user.GetUserInfo)
 	userInfoEndpoint.Get("/", user.GetUserInfos)
 	userInfoEndpoint.Put("/", user.UpdateUserInfo)
 	userInfoEndpoint.Delete("/:id", user.DeleteUserInfo)
 
-	userEndpoint := endpoint.Group("/user", logger.New())
+	userEndpoint := v1Endpoint.Group("/user")
 	userEndpoint.Get("/", user.GetUsers)
 	userEndpoint.Get("/:id", user.GetUser)
 	userEndpoint.Post("/", user.NewUser)
 	userEndpoint.Put("/", user.UpdateUser)
 	userEndpoint.Delete("/:id", user.DeleteUser)
 
-	quizEndpoint := endpoint.Group("/quiz", logger.New())
+	quizEndpoint := v1Endpoint.Group("/quiz")
 	quizEndpoint.Get("/", quiz.GetQuizzes)
 	quizEndpoint.Get("/:id", quiz.GetQuiz)
 	quizEndpoint.Post("/", quiz.NewQuiz)
 	quizEndpoint.Put("/", quiz.UpdateQuiz)
 	quizEndpoint.Delete("/:id", quiz.DeleteQuiz)
 
-	quizResultEndpoint := endpoint.Group("/quizResult", logger.New())
+	quizResultEndpoint := v1Endpoint.Group("/quizResult")
 	quizResultEndpoint.Get("/", quiz.GetQuizResults)
 	quizResultEndpoint.Get("/:id", quiz.GetQuizResult)
 	quizResultEndpoint.Post("/", quiz.NewQuizResult)
 	quizResultEndpoint.Put("/", quiz.UpdateQuizResult)
 	quizResultEndpoint.Delete("/:id", quiz.DeleteQuizResult)
 
-	teacherEndpoint := endpoint.Group("/teacher", logger.New())
+	teacherEndpoint := v1Endpoint.Group("/teacher")
 	teacherEndpoint.Get("/", teacher.GetTeachers)
 	teacherEndpoint.Get("/:id", teacher.GetTeacher)
 	teacherEndpoint.Post("/", teacher.NewTeacher)
 	teacherEndpoint.Put("/", teacher.UpdateTeacher)
 	teacherEndpoint.Delete("/:id", teacher.DeleteTeacher)
 
-	studentEndpoint := endpoint.Group("/student", logger.New())
+	studentEndpoint := v1Endpoint.Group("/student")
 	studentEndpoint.Get("/", student.GetStudents)
 	studentEndpoint.Get("/:id", student.GetStudent)
 	studentEndpoint.Post("/", student.NewStudent)
 	studentEndpoint.Put("/", student.UpdateStudent)
 	studentEndpoint.Delete("/:id", student.DeleteStudent)
 
-	subjectEndpoint := endpoint.Group("/subject", logger.New())
+	subjectEndpoint := v1Endpoint.Group("/subject")
 	subjectEndpoint.Get("/", subject.GetSubjects)
 	subjectEndpoint.Get("/:id", subject.GetSubject)
 	subjectEndpoint.Post("/", subject.NewSubject)
 	subjectEndpoint.Put("/", subject.UpdateSubject)
 	subjectEndpoint.Delete("/:id", subject.DeleteSubject)
 
-	sectionEndpoint := endpoint.Group("/section", logger.New())
+	sectionEndpoint := v1Endpoint.Group("/section")
 	sectionEndpoint.Get("/", section.GetSections)
 	sectionEndpoint.Get("/:id", section.GetSection)
 	sectionEndpoint.Post("/", section.NewSection)
@@ -129,9 +156,38 @@ func main() {
 
 	quizResultEndpoint.Post("/check", quiz.CheckQuizResult)
 
-	err = app.Listen(fmt.Sprintf(":%s", envRouting.Port))
+	anouncementEndpoint := v1Endpoint.Group("/anouncement")
+	anouncementEndpoint.Get("/", anouncement.GetAnouncements)
+	anouncementEndpoint.Get("/:id", anouncement.GetAnouncement)
+	anouncementEndpoint.Post("/", anouncement.NewAnouncement)
+	anouncementEndpoint.Put("/", anouncement.UpdateAnouncement)
+	anouncementEndpoint.Delete("/:id", anouncement.DeleteAnouncement)
 
-	if err != nil {
-		log.Fatal(err.Error())
+	learningMaterialEndpoint := v1Endpoint.Group("/learningMaterial")
+	learningMaterialCurrentUserEndpoint := learningMaterialEndpoint.Group("/currentUser")
+	learningMaterialCurrentUserEndpoint.Get("/", learningMaterial.GetLearningMaterialsCurrentUser)
+	learningMaterialCurrentUserEndpoint.Get("/:id", learningMaterial.GetLearningMaterialCurrentUser)
+	learningMaterialCurrentUserEndpoint.Put("/", learningMaterial.UpdateLearningMaterialCurrentUser)
+	learningMaterialCurrentUserEndpoint.Delete("/:id", learningMaterial.DeleteLearningMaterialCurrentUser)
+	learningMaterialCurrentUserEndpoint.Post("/uploadFile", learningMaterial.UploadLearningMaterialCurrentUser)
+	learningMaterialCurrentUserEndpoint.Put("/uploadFile", learningMaterial.UploadUpdatedLearningMaterialCurrentUser)
+
+	learningMaterialEndpoint.Get("/", learningMaterial.GetLearningMaterials)
+	learningMaterialEndpoint.Get("/:id", learningMaterial.GetLearningMaterial)
+	learningMaterialEndpoint.Post("/", learningMaterial.NewLearningMaterial)
+	learningMaterialEndpoint.Put("/", learningMaterial.UpdateLearningMaterial)
+	learningMaterialEndpoint.Delete("/:id", learningMaterial.DeleteLearningMaterial)
+	learningMaterialEndpoint.Post("/uploadFile", learningMaterial.UploadLearningMaterial)
+	learningMaterialEndpoint.Get("/:id/downloadFile", learningMaterial.DownloadLearningMaterialFile)
+	learningMaterialEndpoint.Put("/uploadFile", learningMaterial.UploadUpdatedLearningMaterial)
+
+	app.Static("/learningMaterials", "files/learningMaterials")
+}
+
+func makeDirectoryIfNotExists(path string) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return os.MkdirAll(path, os.ModeDir|0755)
 	}
+
+	return nil
 }

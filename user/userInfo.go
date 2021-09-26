@@ -16,7 +16,7 @@ type UserInfo struct {
 	gorm.Model    `json:"-"`
 	ID            uint      `json:"id" gorm:"primarykey"`
 	UserID        uint      `json:"-" gorm:"unique"`
-	User          User      `json:"user"`
+	User          User      `json:"user" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Birthday      time.Time `json:"birthday"`
 	Gender        string    `json:"gender"`
 	Address       string    `json:"address"`
@@ -26,20 +26,41 @@ type UserInfo struct {
 // GetUserInfo Get a User by id
 func GetUserInfo(c *fiber.Ctx) error {
 	userInfo := new(UserInfo)
-	database.DBConn.Preload("User").Find(&userInfo, c.Params("id"))
+	userInfoFiltered := new(UserInfo)
+	err := database.DBConn.Preload("User").Find(&userInfo, c.Params("id")).Error
+	userClaim := GetUserInfoFromJWTClaim(c)
 
-	if userInfo.ID == 0 {
-		return c.JSON(fiber.Map{})
+	if err == nil {
+		if userInfo.User.ID != 0 ||
+			userClaim.User.Role == "Admin" {
+			userInfoFiltered = userInfo
+		}
+
+		err = c.JSON(userInfoFiltered)
 	}
 
-	return c.JSON(userInfo)
+	return err
 }
 
 // GetUserInfos Get all users
 func GetUserInfos(c *fiber.Ctx) error {
 	userInfos := []UserInfo{}
-	database.DBConn.Preload("User").Find(&userInfos)
-	return c.JSON(userInfos)
+	userInfosFiltered := []UserInfo{}
+	err := database.DBConn.Preload("User").Find(&userInfos).Error
+	userClaim := GetUserInfoFromJWTClaim(c)
+
+	if err == nil {
+		for _, userInfo := range userInfos {
+			if userInfo.User.ID != 0 ||
+				userClaim.User.Role == "Admin" {
+				userInfosFiltered = append(userInfosFiltered, userInfo)
+			}
+		}
+
+		err = c.JSON(userInfosFiltered)
+	}
+
+	return err
 }
 
 // NewUserInfo Creating a User
@@ -48,29 +69,29 @@ func NewUserInfo(c *fiber.Ctx) error {
 	userInfo := new(UserInfo)
 	err := fiberUtils.ParseBody(userInfo)
 
-	// return c.JSON(userInfo)
-
 	if err == nil {
 		var usernameCount int64
-		database.DBConn.Model(&userInfo.User).Where("username = ?", userInfo.User.Username).Count(&usernameCount)
 
-		if len(userInfo.User.Username) == 0 || len(userInfo.User.Password) == 0 || len(userInfo.User.Name) == 0 {
-			return fiberUtils.SendBadRequestResponse("Please Input Username, Password and Name")
-		}
+		if database.DBConn.Model(&userInfo.User).Where("username = ?", userInfo.User.Username).Count(&usernameCount).Error == nil {
+			if len(userInfo.User.Username) == 0 || len(userInfo.User.Password) == 0 || len(userInfo.User.Name) == 0 {
+				return fiberUtils.SendBadRequestResponse("Please Input Username, Password and Name")
+			}
 
-		if len(userInfo.User.Username) < 3 || len(userInfo.User.Password) < 8 || len(userInfo.User.Name) < 3 {
-			return fiberUtils.SendBadRequestResponse("Required Mininum Length of Username, Name and Password is 3, 3 and 8 respectively")
-		}
+			if len(userInfo.User.Username) < 3 || len(userInfo.User.Password) < 8 || len(userInfo.User.Name) < 3 {
+				return fiberUtils.SendBadRequestResponse("Required Mininum Length of Username, Name and Password is 3, 3 and 8 respectively")
+			}
 
-		if usernameCount > 0 {
-			return fiberUtils.SendBadRequestResponse("Username Already Exists")
-		}
+			if usernameCount > 0 {
+				return fiberUtils.SendBadRequestResponse("Username Already Exists")
+			}
 
-		userInfo.User.Password, err = passwordHashing.HashPassword(userInfo.User.Password)
+			userInfo.User.Password, err = passwordHashing.HashPassword(userInfo.User.Password)
 
-		if err == nil {
-			database.DBConn.Create(&userInfo)
-			return fiberUtils.SendJSONMessage("User Successfully Created", true, 201)
+			if err == nil {
+				if database.DBConn.Create(&userInfo).Error == nil {
+					return fiberUtils.SendJSONMessage("User Successfully Created", true, 201)
+				}
+			}
 		}
 	}
 
@@ -89,17 +110,22 @@ func Authenticate(c *fiber.Ctx) error {
 			return fiberUtils.SendBadRequestResponse("Please Input Username and Password")
 		}
 
-		userInfo := UserInfo{}
-		database.DBConn.Joins("User").First(&userInfo, "username = ?", user.Username)
+		userInfos := []UserInfo{}
 
-		if passwordHashing.CheckPasswordHash(password, userInfo.User.Password) {
-			_, err := fiberUtils.GenerateJWTSignedString(fiber.Map{"userInfo": userInfo, "isAdmin": userInfo.User.Role == "Admin"})
+		if database.DBConn.Preload("User").Find(&userInfos).Error == nil {
+			for _, userInfo := range userInfos {
+				if userInfo.User.Username == user.Username {
+					if passwordHashing.CheckPasswordHash(password, userInfo.User.Password) {
+						_, err := fiberUtils.GenerateJWTSignedString(fiber.Map{"userInfo": userInfo, "isAdmin": userInfo.User.Role == "Admin"})
 
-			if err == nil {
-				return fiberUtils.SendSuccessResponse("Access Granted!")
+						if err == nil {
+							return fiberUtils.SendSuccessResponse("Access Granted!")
+						}
+					} else {
+						return fiberUtils.SendJSONMessage("Incorrect Username or Password", false, 401)
+					}
+				}
 			}
-		} else {
-			return fiberUtils.SendJSONMessage("Incorrect Username or Password", false, 401)
 		}
 	}
 
@@ -130,17 +156,19 @@ func UpdateUserInfo(c *fiber.Ctx) error {
 				userInfo.User.Password, err = passwordHashing.HashPassword(userInfo.User.Password)
 				fiberUtils.LogError(err)
 				var existingUserInfo UserInfo
-				database.DBConn.First(&existingUserInfo, userInfo.ID)
 
-				if existingUserInfo.ID == 0 {
-					return fiberUtils.SendJSONMessage("No User exists", false, 404)
+				if database.DBConn.First(&existingUserInfo, userInfo.ID).Error == nil {
+					if existingUserInfo.ID == 0 {
+						return fiberUtils.SendJSONMessage("No User exists", false, 404)
+					}
+
+					if database.DBConn.Updates(&userInfo).Error == nil {
+						return fiberUtils.SendSuccessResponse("User Successfully Updated")
+					}
 				}
-
-				database.DBConn.Updates(&userInfo)
-				return fiberUtils.SendSuccessResponse("User Successfully Updated")
 			}
 
-			err = fiberUtils.SendJSONMessage("No permission to update", false, 401)
+			return fiberUtils.SendJSONMessage("No permission to update", false, 401)
 		}
 	}
 
@@ -155,18 +183,20 @@ func DeleteUserInfo(c *fiber.Ctx) error {
 
 	if err == nil {
 		userInfo := new(UserInfo)
-		database.DBConn.First(&userInfo, c.Params("id"))
 
-		if userInfo.ID == 0 {
-			return fiberUtils.SendJSONMessage("No User exists", false, 404)
+		if database.DBConn.First(&userInfo, c.Params("id")).Error == nil {
+			if userInfo.ID == 0 {
+				return fiberUtils.SendJSONMessage("No User exists", false, 404)
+			}
+
+			if userO.User.Role == "Admin" || userO.ID == userInfo.ID {
+				if database.DBConn.Delete(&userInfo).Error == nil {
+					return fiberUtils.SendSuccessResponse("User Successfully Deleted")
+				}
+			}
+
+			return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 		}
-
-		if userO.User.Role == "Admin" || userO.ID == userInfo.ID {
-			database.DBConn.Delete(&userInfo)
-			return fiberUtils.SendSuccessResponse("User Successfully Deleted")
-		}
-
-		err = fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 	}
 
 	return err
@@ -177,6 +207,9 @@ func GetUserInfoFromJWTClaim(c *fiber.Ctx) UserInfo {
 	fiberUtils.Ctx.New(c)
 	userO := fiberUtils.GetJWTClaim("userInfo")
 	userInfo := new(UserInfo)
-	database.DBConn.First(&userInfo.ID, userO["id"])
+	err := database.DBConn.Preload("User").First(&userInfo, userO["id"]).Error
+	if err == nil {
+	}
+
 	return *userInfo
 }

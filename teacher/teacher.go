@@ -8,28 +8,51 @@ import (
 
 	"github.com/JohnRebellion/go-utils/database"
 	fiberUtils "github.com/JohnRebellion/go-utils/fiber"
+	"github.com/JohnRebellion/go-utils/passwordHashing"
 )
 
 // Teacher ...
 type Teacher struct {
 	gorm.Model `json:"-"`
-	ID         uint      `json:"id" gorm:"primarykey"`
-	UserID     uint      `json:"-" gorm:"unique"`
-	User       user.User `json:"user"`
+	ID         uint          `json:"id" gorm:"primarykey"`
+	UserInfoID uint          `json:"-" gorm:"unique"`
+	UserInfo   user.UserInfo `json:"userInfo" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 // GetTeachers ...
 func GetTeachers(c *fiber.Ctx) error {
 	teachers := []Teacher{}
-	database.DBConn.Preload("User").Find(&teachers)
-	return c.JSON(teachers)
+	teachersFiltered := []Teacher{}
+	err := database.DBConn.Preload("UserInfo.User").Find(&teachers).Error
+
+	if err == nil {
+		for _, teacher := range teachers {
+			if teacher.UserInfo.User.ID != 0 {
+				teachersFiltered = append(teachersFiltered, teacher)
+			}
+		}
+
+		err = c.JSON(teachersFiltered)
+	}
+
+	return err
 }
 
 // GetTeacher ...
 func GetTeacher(c *fiber.Ctx) error {
 	teacher := new(Teacher)
-	database.DBConn.Preload("User").First(&teacher, c.Params("id"))
-	return c.JSON(&teacher)
+	teacherFiltered := new(Teacher)
+	err := database.DBConn.Preload("UserInfo.User").First(&teacher, c.Params("id")).Error
+
+	if err == nil {
+		if teacher.UserInfo.User.ID != 0 {
+			teacherFiltered = teacher
+		}
+
+		err = c.JSON(&teacherFiltered)
+	}
+
+	return err
 }
 
 // NewTeacher ...
@@ -37,8 +60,16 @@ func NewTeacher(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	teacher := new(Teacher)
 	fiberUtils.ParseBody(&teacher)
-	database.DBConn.Create(&teacher)
-	return fiberUtils.SendSuccessResponse("Created a new teacher successfully")
+	var err error
+	teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
+
+	if err == nil {
+		if database.DBConn.Create(&teacher).Error == nil {
+			return fiberUtils.SendSuccessResponse("Created a new teacher successfully")
+		}
+	}
+
+	return err
 }
 
 // UpdateTeacher ...
@@ -46,13 +77,26 @@ func UpdateTeacher(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	teacher := new(Teacher)
 	fiberUtils.ParseBody(&teacher)
-	database.DBConn.Updates(&teacher)
-	return fiberUtils.SendSuccessResponse("Updated a teacher successfully")
+	var err error
+	teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
+
+	if err == nil {
+		if database.DBConn.Updates(&teacher).Error == nil {
+			return fiberUtils.SendSuccessResponse("Updated a teacher successfully")
+		}
+	}
+
+	return err
 }
 
 // DeleteTeacher ...
 func DeleteTeacher(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	database.DBConn.Delete(&Teacher{}, c.Params("id"))
-	return fiberUtils.SendSuccessResponse("Deleted a teacher successfully")
+	err := database.DBConn.Delete(&Teacher{}, c.Params("id")).Error
+
+	if err == nil {
+		return fiberUtils.SendSuccessResponse("Deleted a teacher successfully")
+	}
+
+	return err
 }

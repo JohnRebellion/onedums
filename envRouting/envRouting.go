@@ -50,6 +50,15 @@ var (
 
 	// PostgresTimezone ...
 	PostgresTimezone string
+
+	// TwilioAccountSID ..
+	TwilioAccountSID string
+
+	// TwilioAuthenticationToken ..
+	TwilioAuthenticationToken string
+
+	// TwilioPhoneNumber ..
+	TwilioPhoneNumber string
 )
 
 // LoadEnv Staticly load environment variables
@@ -71,6 +80,10 @@ func LoadEnv() {
 	PostgresPort = getEnv("POSTGRES_PORT")
 	PostgresSSLMode = getEnv("POSTGRES_SSL_MODE")
 	PostgresTimezone = getEnv("POSTGRES_TIMEZONE")
+
+	TwilioAccountSID = getEnv("TWILIO_ACCOUNT_SID")
+	TwilioAuthenticationToken = getEnv("TWILIO_AUTH_TOKEN")
+	TwilioPhoneNumber = getEnv("TWILIO_PHONE_NUMBER")
 }
 
 func getEnv(key string) string {
