@@ -135,41 +135,37 @@ func Authenticate(c *fiber.Ctx) error {
 // UpdateUserInfo Update User
 func UpdateUserInfo(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	userO := new(UserInfo)
-	err := fiberUtils.GetJWTClaimOfType("userInfo", userO)
+	userClaim := GetUserInfoFromJWTClaim(c)
+	userInfo := new(UserInfo)
+	err := fiberUtils.ParseBody(userInfo)
+	userInfo.User.ID = userInfo.ID
 
 	if err == nil {
-		userInfo := new(UserInfo)
-		err := fiberUtils.ParseBody(userInfo)
-		userInfo.User.ID = userInfo.ID
-
-		if err == nil {
-			if userO.User.Role == "Admin" || userO.ID == userInfo.ID {
-				if len(userInfo.User.Username) == 0 || len(userInfo.User.Password) == 0 || len(userInfo.User.Name) == 0 {
-					return fiberUtils.SendBadRequestResponse("Please Input Username, Password and Name")
-				}
-
-				if len(userInfo.User.Username) < 3 || len(userInfo.User.Password) < 8 || len(userInfo.User.Name) < 3 {
-					return fiberUtils.SendBadRequestResponse("Required Mininum Length of Username, Name and Password is 3, 3 and 8 respectively")
-				}
-
-				userInfo.User.Password, err = passwordHashing.HashPassword(userInfo.User.Password)
-				fiberUtils.LogError(err)
-				var existingUserInfo UserInfo
-
-				if database.DBConn.First(&existingUserInfo, userInfo.ID).Error == nil {
-					if existingUserInfo.ID == 0 {
-						return fiberUtils.SendJSONMessage("No User exists", false, 404)
-					}
-
-					if database.DBConn.Updates(&userInfo).Error == nil {
-						return fiberUtils.SendSuccessResponse("User Successfully Updated")
-					}
-				}
+		if userClaim.User.Role == "Admin" || userClaim.ID == userInfo.ID {
+			if len(userInfo.User.Username) == 0 || len(userInfo.User.Password) == 0 || len(userInfo.User.Name) == 0 {
+				return fiberUtils.SendBadRequestResponse("Please Input Username, Password and Name")
 			}
 
-			return fiberUtils.SendJSONMessage("No permission to update", false, 401)
+			if len(userInfo.User.Username) < 3 || len(userInfo.User.Password) < 8 || len(userInfo.User.Name) < 3 {
+				return fiberUtils.SendBadRequestResponse("Required Mininum Length of Username, Name and Password is 3, 3 and 8 respectively")
+			}
+
+			userInfo.User.Password, err = passwordHashing.HashPassword(userInfo.User.Password)
+			fiberUtils.LogError(err)
+			var existingUserInfo UserInfo
+
+			if database.DBConn.First(&existingUserInfo, userInfo.ID).Error == nil {
+				if existingUserInfo.ID == 0 {
+					return fiberUtils.SendJSONMessage("No User exists", false, 404)
+				}
+
+				if database.DBConn.Updates(&userInfo).Error == nil {
+					return fiberUtils.SendSuccessResponse("User Successfully Updated")
+				}
+			}
 		}
+
+		return fiberUtils.SendJSONMessage("No permission to update", false, 401)
 	}
 
 	return err
@@ -178,25 +174,22 @@ func UpdateUserInfo(c *fiber.Ctx) error {
 // DeleteUserInfo Delete User by id
 func DeleteUserInfo(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	userO := new(UserInfo)
-	err := fiberUtils.GetJWTClaimOfType("userInfo", userO)
+	userClaim := GetUserInfoFromJWTClaim(c)
+	userInfo := new(UserInfo)
+	err := database.DBConn.First(&userInfo, c.Params("id")).Error
 
 	if err == nil {
-		userInfo := new(UserInfo)
-
-		if database.DBConn.First(&userInfo, c.Params("id")).Error == nil {
-			if userInfo.ID == 0 {
-				return fiberUtils.SendJSONMessage("No User exists", false, 404)
-			}
-
-			if userO.User.Role == "Admin" || userO.ID == userInfo.ID {
-				if database.DBConn.Delete(&userInfo).Error == nil {
-					return fiberUtils.SendSuccessResponse("User Successfully Deleted")
-				}
-			}
-
-			return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
+		if userInfo.ID == 0 {
+			return fiberUtils.SendJSONMessage("No User exists", false, 404)
 		}
+
+		if userClaim.User.Role == "Admin" || userClaim.ID == userInfo.ID {
+			if database.DBConn.Delete(&userInfo).Error == nil {
+				return fiberUtils.SendSuccessResponse("User Successfully Deleted")
+			}
+		}
+
+		return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 	}
 
 	return err

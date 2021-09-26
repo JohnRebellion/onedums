@@ -77,6 +77,7 @@ func NewStudent(c *fiber.Ctx) error {
 	student := new(Student)
 	fiberUtils.ParseBody(&student)
 	var err error
+	student.UserInfo.User.Role = "Student"
 	student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
 
 	if err == nil {
@@ -95,10 +96,15 @@ func UpdateStudent(c *fiber.Ctx) error {
 	fiberUtils.ParseBody(&student)
 	var err error
 	student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
+	userClaim := user.GetUserInfoFromJWTClaim(c)
 
 	if err == nil {
-		if database.DBConn.Updates(&student).Error == nil {
-			return fiberUtils.SendSuccessResponse("Updated a student successfully")
+		if userClaim.User.ID == student.UserInfo.User.ID || userClaim.User.Role == "Admin" {
+			if database.DBConn.Updates(&student).Error == nil {
+				return fiberUtils.SendSuccessResponse("Updated a student successfully")
+			}
+		} else {
+			return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 		}
 	}
 
@@ -108,10 +114,18 @@ func UpdateStudent(c *fiber.Ctx) error {
 // DeleteStudent ...
 func DeleteStudent(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	err := database.DBConn.Delete(&Student{}, c.Params("id")).Error
+	userClaim := user.GetUserInfoFromJWTClaim(c)
+	student := new(Student)
+	err := database.DBConn.First(&student, c.Params("id")).Error
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Deleted a student successfully")
+		if userClaim.User.ID == student.UserInfo.User.ID || userClaim.User.Role == "Admin" {
+			if database.DBConn.Delete(&student).Error == nil {
+				return fiberUtils.SendSuccessResponse("Updated a student successfully")
+			}
+		} else {
+			return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
+		}
 	}
 
 	return err
