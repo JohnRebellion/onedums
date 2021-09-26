@@ -29,8 +29,8 @@ func main() {
 	envRouting.LoadEnv()
 	makeDirectoryIfNotExists("files/learningMaterials")
 	twilioService.NewClient(envRouting.TwilioAccountSID, envRouting.TwilioAuthenticationToken, envRouting.TwilioPhoneNumber)
-	// database.SQLiteConnect(envRouting.SQLiteFilename)
-	database.MySQLConnect(envRouting.MySQLUsername, envRouting.MySQLPassword, envRouting.MySQLHost, envRouting.DatabaseName)
+	database.SQLiteConnect(envRouting.SQLiteFilename)
+	// database.MySQLConnect(envRouting.MySQLUsername, envRouting.MySQLPassword, envRouting.MySQLHost, envRouting.DatabaseName)
 	err := database.DBConn.AutoMigrate(
 		&section.Section{},
 		&subject.Subject{},
