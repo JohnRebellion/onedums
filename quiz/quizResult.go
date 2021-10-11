@@ -122,7 +122,7 @@ func CheckQuizResult(c *fiber.Ctx) error {
 	fiberUtils.ParseBody(&quizResult)
 	sum := 0
 	quiz := new(Quiz)
-	err := database.DBConn.First(&quiz, quizResult.Quiz.ID).Error
+	err := database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").First(&quiz, quizResult.Quiz.ID).Error
 	willSendSMS := true
 
 	if err == nil {
@@ -142,14 +142,14 @@ func CheckQuizResult(c *fiber.Ctx) error {
 
 				quizResult.Percentage = float64(sum) * 100 / float64(len(items))
 				student := new(student.Student)
-				err = database.DBConn.Find(&student, quizResult.Student.ID).Error
+				err = database.DBConn.Preload("Section").Preload("UserInfo.User").Find(&student, quizResult.Student.ID).Error
 
 				if err == nil {
 					err = database.DBConn.Create(&quizResult).Error
 
 					if err == nil {
 						if willSendSMS {
-							twilioService.SendSMS(fmt.Sprintf("\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), quizResult.Student.Guardian.ContactNumber)
+							twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), quizResult.Student.Guardian.ContactNumber)
 						}
 
 						return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
