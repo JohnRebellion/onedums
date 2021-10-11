@@ -141,14 +141,19 @@ func CheckQuizResult(c *fiber.Ctx) error {
 				}
 
 				quizResult.Percentage = float64(sum) * 100 / float64(len(items))
-				err = database.DBConn.Create(&quizResult).Error
+				student := new(student.Student)
+				err = database.DBConn.Find(&student, quizResult.Student.ID).Error
 
 				if err == nil {
-					if willSendSMS {
-						twilioService.SendSMS(fmt.Sprintf("\n%s's grade on \"%s\": %2.f%s", quizResult.Student.UserInfo.User.Name, quizResult.Quiz.Title, quizResult.Percentage, "%"), quizResult.Student.Guardian.ContactNumber)
-					}
+					err = database.DBConn.Create(&quizResult).Error
 
-					return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
+					if err == nil {
+						if willSendSMS {
+							twilioService.SendSMS(fmt.Sprintf("\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), quizResult.Student.Guardian.ContactNumber)
+						}
+
+						return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
+					}
 				}
 			}
 		}
