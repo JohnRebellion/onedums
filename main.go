@@ -19,6 +19,8 @@ import (
 	"github.com/JohnRebellion/go-utils/database"
 	fiberUtils "github.com/JohnRebellion/go-utils/fiber"
 	"github.com/JohnRebellion/go-utils/passwordHashing"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -29,7 +31,7 @@ func main() {
 	envRouting.LoadEnv()
 	makeDirectoryIfNotExists("files/learningMaterials")
 	twilioService.NewClient(envRouting.TwilioAccountSID, envRouting.TwilioAuthenticationToken, envRouting.TwilioPhoneNumber)
-	database.SQLiteConnect(envRouting.SQLiteFilename)
+	database.DBConn, database.Err = gorm.Open(postgres.Open(envRouting.PostgresURL), &gorm.Config{})
 	// database.MySQLConnect(envRouting.MySQLUsername, envRouting.MySQLPassword, envRouting.MySQLHost, envRouting.DatabaseName)
 	err := database.DBConn.AutoMigrate(
 		&section.Section{},
