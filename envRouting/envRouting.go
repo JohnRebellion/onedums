@@ -59,6 +59,9 @@ var (
 
 	// TwilioPhoneNumber ..
 	TwilioPhoneNumber string
+
+	// PostgresURL
+	PostgresURL string
 )
 
 // LoadEnv Staticly load environment variables
@@ -84,6 +87,7 @@ func LoadEnv() {
 	TwilioAccountSID = getEnv("TWILIO_ACCOUNT_SID")
 	TwilioAuthenticationToken = getEnv("TWILIO_AUTH_TOKEN")
 	TwilioPhoneNumber = getEnv("TWILIO_PHONE_NUMBER")
+	PostgresURL = getEnv("POSTGRES_URL")
 }
 
 func getEnv(key string) string {

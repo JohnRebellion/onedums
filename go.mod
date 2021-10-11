@@ -12,7 +12,7 @@ require (
 	github.com/twilio/twilio-go v0.16.0
 	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
 	gorm.io/datatypes v1.0.2
-	gorm.io/gorm v1.21.15
+	gorm.io/gorm v1.21.16
 )
 
 require (
@@ -33,7 +33,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.30.0 // indirect
+	github.com/valyala/fasthttp v1.31.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/text v0.3.7 // indirect
