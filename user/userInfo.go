@@ -159,7 +159,7 @@ func UpdateUserInfo(c *fiber.Ctx) error {
 					return fiberUtils.SendJSONMessage("No User exists", false, 404)
 				}
 
-				if database.DBConn.Updates(&userInfo).Error == nil {
+				if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Updates(&userInfo).Error == nil {
 					return fiberUtils.SendSuccessResponse("User Successfully Updated")
 				}
 			}
