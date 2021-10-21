@@ -93,7 +93,7 @@ func UpdateTeacher(c *fiber.Ctx) error {
 
 	if err == nil {
 		if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-			if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Updates(&teacher).Error == nil {
+			if database.DBConn.Updates(&teacher).Error == nil {
 				return fiberUtils.SendSuccessResponse("Updated a teacher successfully")
 			}
 		} else {
