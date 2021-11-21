@@ -120,6 +120,7 @@ func setupPrivateRoutes(app *fiber.App) {
 	quizEndpoint.Post("/", quiz.NewQuiz)
 	quizEndpoint.Put("/", quiz.UpdateQuiz)
 	quizEndpoint.Delete("/:id", quiz.DeleteQuiz)
+	quizEndpoint.Get("/subjectId/:subjectId", quiz.GetQuizzesBySubjectID)
 
 	quizResultEndpoint := v1Endpoint.Group("/quizResult")
 	quizResultEndpoint.Get("/", quiz.GetQuizResults)
@@ -182,6 +183,7 @@ func setupPrivateRoutes(app *fiber.App) {
 	learningMaterialEndpoint.Post("/uploadFile", learningMaterial.UploadLearningMaterial)
 	learningMaterialEndpoint.Get("/:id/downloadFile", learningMaterial.DownloadLearningMaterialFile)
 	learningMaterialEndpoint.Put("/uploadFile", learningMaterial.UploadUpdatedLearningMaterial)
+	learningMaterialEndpoint.Get("/subjectId/:subjectId", learningMaterial.GetLearningMaterialsBySubjectID)
 
 	app.Static("/learningMaterials", "files/learningMaterials")
 }

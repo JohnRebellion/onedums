@@ -27,6 +27,7 @@ type Quiz struct {
 	Items            datatypes.JSON  `json:"items"`
 	DateOfSubmission time.Time       `json:"dateOfSubmission"`
 	TimeLimit        uint64          `json:"timeLimit"`
+	CreatedAt        time.Time       `json:"dateCreated"`
 }
 
 // Item ...
@@ -116,5 +117,29 @@ func DeleteQuiz(c *fiber.Ctx) error {
 		return fiberUtils.SendSuccessResponse("Deleted quiz successfully")
 	}
 
+	return err
+}
+
+// GetQuizzesBySubjectID ...
+func GetQuizzesBySubjectID(c *fiber.Ctx) error {
+	quizzes := []Quiz{}
+	subjectID, err := c.ParamsInt("subjectId")
+
+	if err == nil {
+		err = database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").First(&quizzes, "subject_id = ?", subjectID).Error
+		// userClaim := user.GetUserInfoFromJWTClaim(c)
+
+		if err == nil {
+			// 	if quiz.Teacher.UserInfo.User.ID != 0 &&
+			// 		quiz.Subject.ID != 0 ||
+			// 		userClaim.User.Role == "Admin" {
+			// 		quizFiltered = quiz
+			// 	}
+
+			// 	err = c.JSON(quizFiltered)
+			// }
+			c.JSON(quizzes)
+		}
+	}
 	return err
 }

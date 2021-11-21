@@ -8,6 +8,7 @@ import (
 	"onedums/user"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -27,6 +28,7 @@ type LearningMaterial struct {
 	Subject     subject.Subject `json:"subject"`
 	TeacherID   uint            `json:"-"`
 	Teacher     teacher.Teacher `json:"teacher"`
+	CreatedAt   time.Time       `json:"dateUploaded"`
 }
 
 // Item ...
@@ -445,4 +447,20 @@ func makeDirectoryIfNotExists(path string) error {
 	}
 
 	return nil
+}
+
+// GetLearningMaterialsBySubjectID ...
+func GetLearningMaterialsBySubjectID(c *fiber.Ctx) error {
+	learningMaterials := []LearningMaterial{}
+	subjectID, err := c.ParamsInt("subjectId")
+
+	if err == nil {
+		err = database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").Find(&learningMaterials, "subject_id = ?", subjectID).Error
+
+		if err == nil {
+			return c.JSON(learningMaterials)
+		}
+	}
+
+	return err
 }
