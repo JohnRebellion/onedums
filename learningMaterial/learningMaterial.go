@@ -2,6 +2,7 @@ package learningMaterial
 
 import (
 	"fmt"
+	"log"
 	"mime/multipart"
 	"onedums/subject"
 	"onedums/teacher"
@@ -47,6 +48,8 @@ func GetLearningMaterialsCurrentUser(c *fiber.Ctx) error {
 	userClaim := user.GetUserInfoFromJWTClaim(c)
 
 	if err == nil {
+		log.Println(len(learningMaterials))
+
 		for _, learningMaterial := range learningMaterials {
 			_, err = os.Stat(learningMaterial.absoluteServerFilename())
 
@@ -68,7 +71,7 @@ func GetLearningMaterialsCurrentUser(c *fiber.Ctx) error {
 func GetLearningMaterialCurrentUser(c *fiber.Ctx) error {
 	learningMaterial := new(LearningMaterial)
 	learningMaterialFiltered := new(LearningMaterial)
-	err := database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").First(&learningMaterial, c.Params("id")).Error
+	err := database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").Find(&learningMaterial).Error
 	userClaim := user.GetUserInfoFromJWTClaim(c)
 
 	if err == nil {
@@ -215,7 +218,7 @@ func UploadLearningMaterialCurrentUser(c *fiber.Ctx) error {
 			teacher := new(teacher.Teacher)
 
 			if err == nil {
-				err = database.DBConn.Joins("UserInfo").Find(&teacher, "UserInfo.id = ?", userClaim.ID).Error
+				err = database.DBConn.Model(&teacher).Joins("UserInfo").First(&teacher, "UserInfo.id = ?", userClaim.ID).Error
 
 				if err == nil {
 					if teacherID != uint64(teacher.ID) || userClaim.User.Role == "Admin" {
@@ -227,7 +230,7 @@ func UploadLearningMaterialCurrentUser(c *fiber.Ctx) error {
 
 					if err == nil {
 						if teacher.UserInfo.ID == userClaim.ID || userClaim.User.Role == "Admin" {
-							err := database.DBConn.Updates(&learningMaterial).Error
+							err := database.DBConn.Create(&learningMaterial).Error
 
 							if err == nil {
 								return fiberUtils.SendSuccessResponse("Uploaded updated learning material successfully")
