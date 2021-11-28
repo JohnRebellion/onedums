@@ -161,3 +161,31 @@ func CheckQuizResult(c *fiber.Ctx) error {
 
 	return err
 }
+
+// GetQuizResultByStudentID ...
+func GetQuizResultByStudentID(c *fiber.Ctx) error {
+	quizResults := []QuizResult{}
+	quizResultsFiltered := []QuizResult{}
+	studentID, err := c.ParamsInt("studentId")
+
+	if err == nil {
+		err = database.DBConn.Preload("Quiz.Teacher.UserInfo.User").Preload("Quiz.Subject").Preload("Student.UserInfo.User").Preload("Student.Section").Find(&quizResults, "student_id = ?", studentID).Error
+		userClaim := user.GetUserInfoFromJWTClaim(c)
+
+		if err == nil {
+			for _, quizResult := range quizResults {
+				if quizResult.Quiz.Teacher.UserInfo.User.ID != 0 &&
+					quizResult.Quiz.Subject.ID != 0 &&
+					quizResult.Student.UserInfo.User.ID != 0 &&
+					quizResult.Student.Section.ID != 0 ||
+					userClaim.User.Role == "Admin" {
+					quizResultsFiltered = append(quizResultsFiltered, quizResult)
+				}
+			}
+
+			err = c.JSON(quizResultsFiltered)
+		}
+	}
+
+	return err
+}

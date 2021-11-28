@@ -215,21 +215,29 @@ func UploadLearningMaterialCurrentUser(c *fiber.Ctx) error {
 			learningMaterial.Teacher.ID = uint(teacherID)
 			learningMaterial.Title = c.FormValue("title")
 			learningMaterial.Description = c.FormValue("description")
-			teacher := new(teacher.Teacher)
+			teachers := []teacher.Teacher{}
+			selectedTeacher := new(teacher.Teacher)
 
 			if err == nil {
-				err = database.DBConn.Model(&teacher).Joins("UserInfo").First(&teacher, "UserInfo.id = ?", userClaim.ID).Error
+				err = database.DBConn.Model(&teacher.Teacher{}).Preload("UserInfo").Find(&teachers).Error
 
 				if err == nil {
-					if teacherID != uint64(teacher.ID) || userClaim.User.Role == "Admin" {
-						teacherID = uint64(teacher.ID)
+					for _, teacher := range teachers {
+						if teacher.UserInfo.ID == userClaim.ID {
+							selectedTeacher = &teacher
+							learningMaterial.Teacher = teacher
+						}
+					}
+
+					if teacherID != uint64(selectedTeacher.ID) || userClaim.User.Role == "Admin" {
+						teacherID = uint64(selectedTeacher.ID)
 					}
 
 					learningMaterial.Filename = file.Filename
 					err = uploadFile(c, file, learningMaterial)
 
 					if err == nil {
-						if teacher.UserInfo.ID == userClaim.ID || userClaim.User.Role == "Admin" {
+						if selectedTeacher.UserInfo.ID == userClaim.ID || userClaim.User.Role == "Admin" {
 							err := database.DBConn.Create(&learningMaterial).Error
 
 							if err == nil {
