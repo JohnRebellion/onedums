@@ -189,3 +189,30 @@ func GetQuizResultByStudentID(c *fiber.Ctx) error {
 
 	return err
 }
+
+// GetStudentProgressBySubjectID ...
+func GetStudentProgressBySubjectID(c *fiber.Ctx) error {
+	studentID, err := c.ParamsInt("studentId")
+
+	if err == nil {
+		subjectID, err := c.ParamsInt("subjectId")
+
+		if err == nil {
+			quizzes := []Quiz{}
+			err = database.DBConn.Preload("Subject").Find(&quizzes, "subject_id = ?", subjectID).Error
+
+			if err == nil {
+				quizResults := []QuizResult{}
+				err = database.DBConn.Preload("Quiz.Subject").Preload("Student.UserInfo.User").Find(&quizResults, "subject_id = ? AND student_id = ?", subjectID, studentID).Error
+
+				if err == nil {
+					return c.JSON(fiber.Map{
+						"value": len(quizResults) / len(quizzes),
+					})
+				}
+			}
+		}
+	}
+
+	return err
+}
