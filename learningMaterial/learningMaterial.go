@@ -229,12 +229,9 @@ func UploadLearningMaterialCurrentUser(c *fiber.Ctx) error {
 						}
 					}
 
-					if teacherID != uint64(selectedTeacher.ID) || userClaim.User.Role == "Admin" {
-						teacherID = uint64(selectedTeacher.ID)
-					}
-
 					learningMaterial.Filename = file.Filename
 					err = uploadFile(c, file, learningMaterial)
+					log.Println(selectedTeacher.UserInfo.ID, userClaim.ID)
 
 					if err == nil {
 						if selectedTeacher.UserInfo.ID == userClaim.ID || userClaim.User.Role == "Admin" {

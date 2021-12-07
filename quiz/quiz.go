@@ -141,5 +141,5 @@ func GetQuizzesBySubjectID(c *fiber.Ctx) error {
 			c.JSON(quizzes)
 		}
 	}
-	return err
+	return c.JSON(quizzes)
 }
