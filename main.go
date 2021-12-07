@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"onedums/activity"
 	"onedums/anouncement"
 	"onedums/envRouting"
 	"onedums/learningMaterial"
@@ -19,8 +20,6 @@ import (
 	"github.com/JohnRebellion/go-utils/database"
 	fiberUtils "github.com/JohnRebellion/go-utils/fiber"
 	"github.com/JohnRebellion/go-utils/passwordHashing"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -31,8 +30,8 @@ func main() {
 	envRouting.LoadEnv()
 	makeDirectoryIfNotExists("files/learningMaterials")
 	twilioService.NewClient(envRouting.TwilioAccountSID, envRouting.TwilioAuthenticationToken, envRouting.TwilioPhoneNumber)
-	database.DBConn, database.Err = gorm.Open(postgres.Open(envRouting.PostgresURL), &gorm.Config{})
-	// database.MySQLConnect(envRouting.MySQLUsername, envRouting.MySQLPassword, envRouting.MySQLHost, envRouting.DatabaseName)
+	// database.DBConn, database.Err = gorm.Open(postgres.Open(envRouting.PostgresURL), &gorm.Config{})
+	database.MySQLConnect(envRouting.MySQLUsername, envRouting.MySQLPassword, envRouting.MySQLHost, envRouting.DatabaseName)
 	err := database.DBConn.AutoMigrate(
 		&section.Section{},
 		&subject.Subject{},
@@ -44,6 +43,7 @@ func main() {
 		&quiz.QuizResult{},
 		&anouncement.Anouncement{},
 		&learningMaterial.LearningMaterial{},
+		&activity.Activity{},
 	)
 
 	var existingUserInfo user.UserInfo
@@ -185,6 +185,30 @@ func setupPrivateRoutes(app *fiber.App) {
 	learningMaterialEndpoint.Get("/:id/downloadFile", learningMaterial.DownloadLearningMaterialFile)
 	learningMaterialEndpoint.Put("/uploadFile", learningMaterial.UploadUpdatedLearningMaterial)
 	learningMaterialEndpoint.Get("/subjectId/:subjectId", learningMaterial.GetLearningMaterialsBySubjectID)
+
+	activityEndpoint := v1Endpoint.Group("/activity")
+	activityEndpoint.Get("/", activity.GetActivities)
+	activityEndpoint.Get("/:id", activity.GetActivity)
+	activityEndpoint.Post("/", activity.NewActivity)
+	activityEndpoint.Put("/", activity.UpdateActivity)
+	activityEndpoint.Delete("/:id", activity.DeleteActivity)
+	activityEndpoint.Post("/uploadFile", activity.UploadActivity)
+	activityEndpoint.Get("/:id/downloadFile", activity.DownloadActivityFile)
+	activityEndpoint.Put("/uploadFile", activity.UploadUpdatedActivity)
+	activityEndpoint.Get("/subjectId/:subjectId", activity.GetActivitiesBySubjectID)
+
+	activityResultEndpoint := v1Endpoint.Group("/activityResult")
+	activityResultEndpoint.Get("/", activity.GetActivityResults)
+	activityResultEndpoint.Get("/:id", activity.GetActivityResult)
+	activityResultEndpoint.Post("/", activity.NewActivityResult)
+	activityResultEndpoint.Put("/", activity.UpdateActivityResult)
+	activityResultEndpoint.Delete("/:id", activity.DeleteActivityResult)
+	activityResultEndpoint.Post("/uploadFile", activity.UploadActivityResult)
+	activityResultEndpoint.Get("/:id/downloadFile", activity.DownloadActivityResultFile)
+	activityResultEndpoint.Put("/uploadFile", activity.UploadUpdatedActivityResult)
+	activityResultEndpoint.Get("/subjectId/:subjectId", activity.GetActivityResultsBySubjectID)
+
+	// activityResultEndpoint.Post("/submit", activity.CheckActivityResult)
 
 	app.Static("/learningMaterials", "files/learningMaterials")
 }
