@@ -18,7 +18,6 @@ type User struct {
 	Password   string `json:"password"`
 	Name       string `json:"name"`
 	Role       string `json:"role" gorm:"default:User"`
-	Status     string `json:"status"`
 }
 
 // GetUser Get a User by id
