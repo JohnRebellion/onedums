@@ -43,11 +43,14 @@ func GetSection(c *fiber.Ctx) error {
 func NewSection(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	section := new(Section)
-	fiberUtils.ParseBody(&section)
-	err := database.DBConn.Create(&section).Error
+	err := fiberUtils.ParseBody(&section)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Created a new section successfully")
+		err = database.DBConn.Create(&section).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Created a new section successfully")
+		}
 	}
 
 	return err
@@ -57,11 +60,14 @@ func NewSection(c *fiber.Ctx) error {
 func UpdateSection(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	section := new(Section)
-	fiberUtils.ParseBody(&section)
-	err := database.DBConn.Updates(&section).Error
+	err := fiberUtils.ParseBody(&section)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Updated a section successfully")
+		err = database.DBConn.Updates(&section).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Updated a section successfully")
+		}
 	}
 
 	return err

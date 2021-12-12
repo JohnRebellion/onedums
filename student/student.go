@@ -75,14 +75,16 @@ func GetStudent(c *fiber.Ctx) error {
 func NewStudent(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	student := new(Student)
-	fiberUtils.ParseBody(&student)
-	var err error
-	student.UserInfo.User.Role = "Student"
-	student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
+	err := fiberUtils.ParseBody(&student)
 
 	if err == nil {
-		if database.DBConn.Create(&student).Error == nil {
-			return fiberUtils.SendSuccessResponse("Created a new student successfully")
+		student.UserInfo.User.Role = "Student"
+		student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
+
+		if err == nil {
+			if database.DBConn.Create(&student).Error == nil {
+				return fiberUtils.SendSuccessResponse("Created a new student successfully")
+			}
 		}
 	}
 
@@ -93,18 +95,20 @@ func NewStudent(c *fiber.Ctx) error {
 func UpdateStudent(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	student := new(Student)
-	fiberUtils.ParseBody(&student)
-	var err error
-	student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
-	userClaim := user.GetUserInfoFromJWTClaim(c)
+	err := fiberUtils.ParseBody(&student)
 
 	if err == nil {
-		if userClaim.User.ID == student.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-			if database.DBConn.Updates(&student).Error == nil {
-				return fiberUtils.SendSuccessResponse("Updated a student successfully")
+		student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
+		userClaim := user.GetUserInfoFromJWTClaim(c)
+
+		if err == nil {
+			if userClaim.User.ID == student.UserInfo.User.ID || userClaim.User.Role == "Admin" {
+				if database.DBConn.Updates(&student).Error == nil {
+					return fiberUtils.SendSuccessResponse("Updated a student successfully")
+				}
+			} else {
+				return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 			}
-		} else {
-			return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 		}
 	}
 

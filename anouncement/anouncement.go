@@ -47,12 +47,15 @@ func GetAnouncement(c *fiber.Ctx) error {
 func NewAnouncement(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	anouncement := new(Anouncement)
-	fiberUtils.ParseBody(&anouncement)
-	anouncement.DateCreated = time.Now()
-	err := database.DBConn.Create(&anouncement).Error
+	err := fiberUtils.ParseBody(&anouncement)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Created a new anouncement successfully")
+		anouncement.DateCreated = time.Now()
+		err = database.DBConn.Create(&anouncement).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Created a new anouncement successfully")
+		}
 	}
 
 	return err
@@ -62,11 +65,14 @@ func NewAnouncement(c *fiber.Ctx) error {
 func UpdateAnouncement(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	anouncement := new(Anouncement)
-	fiberUtils.ParseBody(&anouncement)
-	err := database.DBConn.Updates(&anouncement).Error
+	err := fiberUtils.ParseBody(&anouncement)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Updated a anouncement successfully")
+		err := database.DBConn.Updates(&anouncement).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Updated a anouncement successfully")
+		}
 	}
 
 	return err

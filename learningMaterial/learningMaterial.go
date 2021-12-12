@@ -2,7 +2,6 @@ package learningMaterial
 
 import (
 	"fmt"
-	"log"
 	"mime/multipart"
 	"onedums/subject"
 	"onedums/teacher"
@@ -48,8 +47,6 @@ func GetLearningMaterialsCurrentUser(c *fiber.Ctx) error {
 	userClaim := user.GetUserInfoFromJWTClaim(c)
 
 	if err == nil {
-		log.Println(len(learningMaterials))
-
 		for _, learningMaterial := range learningMaterials {
 			_, err = os.Stat(learningMaterial.absoluteServerFilename())
 
@@ -94,25 +91,28 @@ func GetLearningMaterialCurrentUser(c *fiber.Ctx) error {
 func UpdateLearningMaterialCurrentUser(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	learningMaterial := new(LearningMaterial)
-	fiberUtils.ParseBody(learningMaterial)
-	file, err := c.FormFile("filename")
-	userClaim := user.GetUserInfoFromJWTClaim(c)
-	teacher := new(teacher.Teacher)
+	err := fiberUtils.ParseBody(&learningMaterial)
 
 	if err == nil {
-		err = database.DBConn.Joins("UserInfo").Find(&teacher, "UserInfo.id = ?", userClaim.ID).Error
+		file, err := c.FormFile("filename")
+		userClaim := user.GetUserInfoFromJWTClaim(c)
+		teacher := new(teacher.Teacher)
 
 		if err == nil {
-			if teacher.UserInfo.ID == userClaim.ID || userClaim.User.Role == "Admin" {
-				learningMaterial.Filename = file.Filename
-				c.SaveFile(file, learningMaterial.absoluteServerFilename())
-				err := database.DBConn.Updates(&learningMaterial).Error
+			err = database.DBConn.Joins("UserInfo").Find(&teacher, "UserInfo.id = ?", userClaim.ID).Error
 
-				if err == nil {
-					return fiberUtils.SendSuccessResponse("Updated learning material successfully")
+			if err == nil {
+				if teacher.UserInfo.ID == userClaim.ID || userClaim.User.Role == "Admin" {
+					learningMaterial.Filename = file.Filename
+					c.SaveFile(file, learningMaterial.absoluteServerFilename())
+					err := database.DBConn.Updates(&learningMaterial).Error
+
+					if err == nil {
+						return fiberUtils.SendSuccessResponse("Updated learning material successfully")
+					}
+				} else {
+					return fiberUtils.SendJSONMessage("Learning material cannot be updated by current user", false, 401)
 				}
-			} else {
-				return fiberUtils.SendJSONMessage("Learning material cannot be updated by current user", false, 401)
 			}
 		}
 	}
@@ -231,7 +231,6 @@ func UploadLearningMaterialCurrentUser(c *fiber.Ctx) error {
 
 					learningMaterial.Filename = file.Filename
 					err = uploadFile(c, file, learningMaterial)
-					log.Println(selectedTeacher.UserInfo.ID, userClaim.ID)
 
 					if err == nil {
 						if selectedTeacher.UserInfo.ID == userClaim.ID || userClaim.User.Role == "Admin" {
@@ -300,12 +299,14 @@ func GetLearningMaterial(c *fiber.Ctx) error {
 func NewLearningMaterial(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	learningMaterial := new(LearningMaterial)
-	fiberUtils.ParseBody(&learningMaterial)
-
-	err := database.DBConn.Create(&learningMaterial).Error
+	err := fiberUtils.ParseBody(&learningMaterial)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Created new learning material successfully")
+		err = database.DBConn.Create(&learningMaterial).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Created new learning material successfully")
+		}
 	}
 
 	return err
@@ -315,16 +316,19 @@ func NewLearningMaterial(c *fiber.Ctx) error {
 func UpdateLearningMaterial(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	learningMaterial := new(LearningMaterial)
-	fiberUtils.ParseBody(learningMaterial)
-	file, err := c.FormFile("filename")
+	err := fiberUtils.ParseBody(&learningMaterial)
 
 	if err == nil {
-		learningMaterial.Filename = file.Filename
-		c.SaveFile(file, learningMaterial.absoluteServerFilename())
-		err := database.DBConn.Updates(&learningMaterial).Error
+		file, err := c.FormFile("filename")
 
 		if err == nil {
-			return fiberUtils.SendSuccessResponse("Updated learning material successfully")
+			learningMaterial.Filename = file.Filename
+			c.SaveFile(file, learningMaterial.absoluteServerFilename())
+			err := database.DBConn.Updates(&learningMaterial).Error
+
+			if err == nil {
+				return fiberUtils.SendSuccessResponse("Updated learning material successfully")
+			}
 		}
 	}
 

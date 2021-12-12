@@ -43,11 +43,14 @@ func GetSubject(c *fiber.Ctx) error {
 func NewSubject(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	subject := new(Subject)
-	fiberUtils.ParseBody(&subject)
-	err := database.DBConn.Create(&subject).Error
+	err := fiberUtils.ParseBody(&subject)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Created a new subject successfully")
+		err = database.DBConn.Create(&subject).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Created a new subject successfully")
+		}
 	}
 
 	return err
@@ -57,11 +60,14 @@ func NewSubject(c *fiber.Ctx) error {
 func UpdateSubject(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	subject := new(Subject)
-	fiberUtils.ParseBody(&subject)
-	err := database.DBConn.Updates(&subject).Error
+	err := fiberUtils.ParseBody(&subject)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Updated a subject successfully")
+		err = database.DBConn.Updates(&subject).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Updated a subject successfully")
+		}
 	}
 
 	return err

@@ -27,7 +27,6 @@ type Activity struct {
 	Title            string          `json:"title"`
 	Filename         string          `json:"filename"`
 	DateOfSubmission time.Time       `json:"dateOfSubmission"`
-	TimeLimit        uint64          `json:"timeLimit"`
 	CreatedAt        time.Time       `json:"dateCreated"`
 }
 
@@ -59,11 +58,14 @@ func GetActivity(c *fiber.Ctx) error {
 func NewActivity(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	activity := new(Activity)
-	fiberUtils.ParseBody(&activity)
-	err := database.DBConn.Create(&activity).Error
+	err := fiberUtils.ParseBody(&activity)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Created a new activity successfully")
+		err = database.DBConn.Create(&activity).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Created a new activity successfully")
+		}
 	}
 
 	return err
@@ -73,11 +75,14 @@ func NewActivity(c *fiber.Ctx) error {
 func UpdateActivity(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	activity := new(Activity)
-	fiberUtils.ParseBody(&activity)
-	err := database.DBConn.Updates(&activity).Error
+	err := fiberUtils.ParseBody(&activity)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Updated a activity successfully")
+		err = database.DBConn.Updates(&activity).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Updated a activity successfully")
+		}
 	}
 
 	return err
@@ -109,16 +114,21 @@ func UploadActivity(c *fiber.Ctx) error {
 			teacherID, err := strconv.ParseUint(c.FormValue("teacherId"), 10, 32)
 			activity.Teacher.ID = uint(teacherID)
 			activity.Title = c.FormValue("title")
+			dateOfSubmission, err := time.Parse("2006-01-02T15:04:05.999Z07:00", c.FormValue("dateOfSubmission"))
 
 			if err == nil {
-				activity.Filename = file.Filename
-				err = uploadFile(c, file, activity)
+				activity.DateOfSubmission = dateOfSubmission
 
 				if err == nil {
-					err := database.DBConn.Create(&activity).Error
+					activity.Filename = file.Filename
+					err = uploadFile(c, file, activity)
 
 					if err == nil {
-						return fiberUtils.SendSuccessResponse("Uploaded new learning material successfully")
+						err := database.DBConn.Create(&activity).Error
+
+						if err == nil {
+							return fiberUtils.SendSuccessResponse("Uploaded new learning material successfully")
+						}
 					}
 				}
 			}
@@ -146,16 +156,21 @@ func UploadUpdatedActivity(c *fiber.Ctx) error {
 				teacherID, err := strconv.ParseUint(c.FormValue("teacherId"), 10, 32)
 				activity.Teacher.ID = uint(teacherID)
 				activity.Title = c.FormValue("title")
+				dateOfSubmission, err := time.Parse("2006-01-02T15:04:05.999Z07:00", c.FormValue("dateOfSubmission"))
 
 				if err == nil {
-					activity.Filename = file.Filename
-					err = uploadFile(c, file, activity)
+					activity.DateOfSubmission = dateOfSubmission
 
 					if err == nil {
-						err := database.DBConn.Updates(&activity).Error
+						activity.Filename = file.Filename
+						err = uploadFile(c, file, activity)
 
 						if err == nil {
-							return fiberUtils.SendSuccessResponse("Uploaded updated learning material successfully")
+							err := database.DBConn.Updates(&activity).Error
+
+							if err == nil {
+								return fiberUtils.SendSuccessResponse("Uploaded updated learning material successfully")
+							}
 						}
 					}
 				}

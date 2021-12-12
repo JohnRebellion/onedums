@@ -84,11 +84,14 @@ func GetQuiz(c *fiber.Ctx) error {
 func NewQuiz(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	quiz := new(Quiz)
-	fiberUtils.ParseBody(&quiz)
-	err := database.DBConn.Create(&quiz).Error
+	err := fiberUtils.ParseBody(&quiz)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Created new quiz successfully")
+		err = database.DBConn.Create(&quiz).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Created new quiz successfully")
+		}
 	}
 
 	return err
@@ -98,11 +101,14 @@ func NewQuiz(c *fiber.Ctx) error {
 func UpdateQuiz(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	quiz := new(Quiz)
-	fiberUtils.ParseBody(quiz)
-	err := database.DBConn.Updates(&quiz).Error
+	err := fiberUtils.ParseBody(&quiz)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Updated quiz successfully")
+		err = database.DBConn.Updates(&quiz).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Updated quiz successfully")
+		}
 	}
 
 	return err

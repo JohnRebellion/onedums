@@ -63,19 +63,21 @@ func GetTeacher(c *fiber.Ctx) error {
 func NewTeacher(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	teacher := new(Teacher)
-	fiberUtils.ParseBody(&teacher)
-	var err error
-	teacher.UserInfo.User.Role = "Teacher"
-	teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
-	userClaim := user.GetUserInfoFromJWTClaim(c)
+	err := fiberUtils.ParseBody(&teacher)
 
 	if err == nil {
-		if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-			if database.DBConn.Create(&teacher).Error == nil {
-				return fiberUtils.SendSuccessResponse("Created a new teacher successfully")
+		teacher.UserInfo.User.Role = "Teacher"
+		teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
+		userClaim := user.GetUserInfoFromJWTClaim(c)
+
+		if err == nil {
+			if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
+				if database.DBConn.Create(&teacher).Error == nil {
+					return fiberUtils.SendSuccessResponse("Created a new teacher successfully")
+				}
+			} else {
+				return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 			}
-		} else {
-			return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 		}
 	}
 
@@ -86,18 +88,20 @@ func NewTeacher(c *fiber.Ctx) error {
 func UpdateTeacher(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	teacher := new(Teacher)
-	fiberUtils.ParseBody(&teacher)
-	var err error
-	teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
-	userClaim := user.GetUserInfoFromJWTClaim(c)
+	err := fiberUtils.ParseBody(&teacher)
 
 	if err == nil {
-		if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-			if database.DBConn.Updates(&teacher).Error == nil {
-				return fiberUtils.SendSuccessResponse("Updated a teacher successfully")
+		teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
+		userClaim := user.GetUserInfoFromJWTClaim(c)
+
+		if err == nil {
+			if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
+				if database.DBConn.Updates(&teacher).Error == nil {
+					return fiberUtils.SendSuccessResponse("Updated a teacher successfully")
+				}
+			} else {
+				return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 			}
-		} else {
-			return fiberUtils.SendJSONMessage("No permission to delete", false, 401)
 		}
 	}
 

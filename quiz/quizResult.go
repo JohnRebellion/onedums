@@ -3,6 +3,7 @@ package quiz
 import (
 	"encoding/json"
 	"fmt"
+	"onedums/activity"
 	"onedums/student"
 	"onedums/twilioService"
 	"onedums/user"
@@ -79,11 +80,14 @@ func GetQuizResult(c *fiber.Ctx) error {
 func NewQuizResult(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	quizresult := new(QuizResult)
-	fiberUtils.ParseBody(&quizresult)
-	err := database.DBConn.Create(&quizresult).Error
+	err := fiberUtils.ParseBody(&quizresult)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
+		err = database.DBConn.Create(&quizresult).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
+		}
 	}
 
 	return err
@@ -93,11 +97,14 @@ func NewQuizResult(c *fiber.Ctx) error {
 func UpdateQuizResult(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	quizresult := new(QuizResult)
-	fiberUtils.ParseBody(&quizresult)
-	err := database.DBConn.Updates(&quizresult).Error
+	err := fiberUtils.ParseBody(&quizresult)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Updated a quiz result successfully")
+		err = database.DBConn.Updates(&quizresult).Error
+
+		if err == nil {
+			return fiberUtils.SendSuccessResponse("Updated a quiz result successfully")
+		}
 	}
 
 	return err
@@ -115,44 +122,97 @@ func DeleteQuizResult(c *fiber.Ctx) error {
 	return err
 }
 
-// NewQuizResult ...
+// CheckQuizResult ...
 func CheckQuizResult(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
 	quizResult := new(QuizResult)
-	fiberUtils.ParseBody(&quizResult)
-	sum := 0
-	quiz := new(Quiz)
-	err := database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").First(&quiz, quizResult.Quiz.ID).Error
-	willSendSMS := true
+	err := fiberUtils.ParseBody(&quizResult)
 
 	if err == nil {
-		items := []Item{}
-		err := json.Unmarshal(quiz.Items, &items)
+		sum := 0
+		quiz := new(Quiz)
+		err = database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").First(&quiz, quizResult.Quiz.ID).Error
+		willSendSMS := true
 
 		if err == nil {
-			answers := []string{}
-			err = json.Unmarshal(quizResult.Answers, &answers)
+			items := []Item{}
+			err := json.Unmarshal(quiz.Items, &items)
 
 			if err == nil {
-				for i, item := range items {
-					if item.Answer == answers[i] {
-						sum++
-					}
-				}
-
-				quizResult.Percentage = float64(sum) * 100 / float64(len(items))
-				student := new(student.Student)
-				err = database.DBConn.Preload("Section").Preload("UserInfo.User").Find(&student, quizResult.Student.ID).Error
+				answers := []string{}
+				err = json.Unmarshal(quizResult.Answers, &answers)
 
 				if err == nil {
-					err = database.DBConn.Create(&quizResult).Error
+					for i, item := range items {
+						if item.Answer == answers[i] {
+							sum++
+						}
+					}
+
+					quizResult.Percentage = float64(sum) * 100 / float64(len(items))
+					student := new(student.Student)
+					err = database.DBConn.Preload("Section").Preload("UserInfo.User").Find(&student, quizResult.Student.ID).Error
 
 					if err == nil {
-						if willSendSMS {
-							twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), student.Guardian.ContactNumber)
-						}
+						err = database.DBConn.Create(&quizResult).Error
 
-						return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
+						if err == nil {
+							if willSendSMS {
+								twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), student.Guardian.ContactNumber)
+							}
+
+							return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return err
+}
+
+// CheckUpdatedQuizResult ...
+func CheckUpdatedQuizResult(c *fiber.Ctx) error {
+	fiberUtils.Ctx.New(c)
+	quizResult := new(QuizResult)
+	err := fiberUtils.ParseBody(&quizResult)
+
+	if err == nil {
+		sum := 0
+		quiz := new(Quiz)
+		err = database.DBConn.Preload("Teacher.UserInfo.User").Preload("Subject").First(&quiz, quizResult.Quiz.ID).Error
+		willSendSMS := false
+
+		if err == nil {
+			items := []Item{}
+			err := json.Unmarshal(quiz.Items, &items)
+
+			if err == nil {
+				answers := []string{}
+				err = json.Unmarshal(quizResult.Answers, &answers)
+
+				if err == nil {
+					for i, item := range items {
+						if item.Answer == answers[i] {
+							sum++
+						}
+					}
+
+					quizResult.Percentage = float64(sum) * 100 / float64(len(items))
+					student := new(student.Student)
+					err = database.DBConn.Preload("Section").Preload("UserInfo.User").Find(&student, quizResult.Student.ID).Error
+
+					if err == nil {
+						err = database.DBConn.Updates(&quizResult).Error
+
+						if err == nil {
+							if willSendSMS {
+								twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), student.Guardian.ContactNumber)
+							}
+
+							return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
+						}
 					}
 				}
 			}
@@ -202,17 +262,39 @@ func GetStudentProgressBySubjectID(c *fiber.Ctx) error {
 			err = database.DBConn.Preload("Subject").Find(&quizzes, "subject_id = ?", subjectID).Error
 
 			if err == nil {
-				quizResults := []QuizResult{}
-				err = database.DBConn.Preload("Quiz.Subject").Preload("Student.UserInfo.User").Find(&quizResults, "subject_id = ? AND student_id = ?", subjectID, studentID).Error
+				quizResultsFiltered := []QuizResult{}
+				activities := []activity.Activity{}
+
+				for _, quiz := range quizzes {
+					quizResults := []QuizResult{}
+					err = database.DBConn.Preload("Quiz.Subject").Preload("Student.UserInfo.User").Find(&quizResults, "quiz_id = ? AND student_id = ?", quiz.ID, studentID).Error
+
+					if err == nil {
+						quizResultsFiltered = append(quizResultsFiltered, quizResults...)
+					}
+				}
+
+				err = database.DBConn.Preload("Subject").Find(&activities, "subject_id = ?", subjectID).Error
 
 				if err == nil {
+					activityResultsFiltered := []activity.ActivityResult{}
+					activityResults := []activity.ActivityResult{}
+
+					for _, activity := range activities {
+						err = database.DBConn.Preload("Activity.Subject").Preload("Student.UserInfo.User").Find(&activityResults, "activity_id = ? AND student_id = ?", activity.ID, studentID).Error
+
+						if err == nil {
+							activityResultsFiltered = append(activityResultsFiltered, activityResults...)
+						}
+					}
+
 					return c.JSON(fiber.Map{
-						"value": len(quizResults) / len(quizzes),
+						"value": float64(len(quizResultsFiltered)+len(activityResultsFiltered)) / float64((len(quizzes))+len(activities)) * 100,
 					})
 				}
 			}
+
 		}
 	}
-
 	return err
 }
