@@ -31,6 +31,7 @@ import (
 func main() {
 	envRouting.LoadEnv()
 	makeDirectoryIfNotExists("files/learningMaterials")
+	makeDirectoryIfNotExists("files/activities")
 	twilioService.NewClient(envRouting.TwilioAccountSID, envRouting.TwilioAuthenticationToken, envRouting.TwilioPhoneNumber)
 	database.DBConn, database.Err = gorm.Open(postgres.Open(envRouting.PostgresURL), &gorm.Config{})
 	// database.MySQLConnect(envRouting.MySQLUsername, envRouting.MySQLPassword, envRouting.MySQLHost, envRouting.DatabaseName)
@@ -74,8 +75,9 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 	app.Use(logger.New())
-	app.Static("/", envRouting.StaticWebLocation)
 	app.Static("/learningMaterials", "files/learningMaterials")
+	app.Static("/activities", "files/activities")
+	app.Static("/", envRouting.StaticWebLocation)
 	setupPublicRoutes(app)
 	setupPrivateRoutes(app)
 

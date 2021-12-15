@@ -16,7 +16,7 @@ type Teacher struct {
 	gorm.Model `json:"-"`
 	ID         uint          `json:"id" gorm:"primarykey"`
 	UserInfoID uint          `json:"-" gorm:"unique"`
-	UserInfo   user.UserInfo `json:"userInfo" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	UserInfo   user.UserInfo `json:"userInfo"`
 }
 
 // GetTeachers ...
@@ -72,7 +72,7 @@ func NewTeacher(c *fiber.Ctx) error {
 
 		if err == nil {
 			if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-				if database.DBConn.Create(&teacher).Error == nil {
+				if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Create(&teacher).Error == nil {
 					return fiberUtils.SendSuccessResponse("Created a new teacher successfully")
 				}
 			} else {
@@ -91,12 +91,13 @@ func UpdateTeacher(c *fiber.Ctx) error {
 	err := fiberUtils.ParseBody(&teacher)
 
 	if err == nil {
+		teacher.UserInfo.User.Role = "Teacher"
 		teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
 		userClaim := user.GetUserInfoFromJWTClaim(c)
 
 		if err == nil {
 			if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-				if database.DBConn.Updates(&teacher).Error == nil {
+				if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Updates(&teacher).Error == nil {
 					return fiberUtils.SendSuccessResponse("Updated a teacher successfully")
 				}
 			} else {
@@ -117,7 +118,7 @@ func DeleteTeacher(c *fiber.Ctx) error {
 
 	if err == nil {
 		if userClaim.User.ID == teacher.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-			if database.DBConn.Delete(&teacher).Error == nil {
+			if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Delete(&teacher).Error == nil {
 				return fiberUtils.SendSuccessResponse("Updated a teacher successfully")
 			}
 		} else {

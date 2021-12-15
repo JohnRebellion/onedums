@@ -17,9 +17,9 @@ type Student struct {
 	gorm.Model `json:"-"`
 	ID         uint            `json:"id" gorm:"primarykey"`
 	UserInfoID uint            `json:"-" gorm:"unique"`
-	UserInfo   user.UserInfo   `json:"userInfo" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	UserInfo   user.UserInfo   `json:"userInfo"`
 	SectionID  uint            `json:"-"`
-	Section    section.Section `json:"section" gorm:"constraint:OnDelete:SET NULL;"`
+	Section    section.Section `json:"section"`
 	Guardian   Guardian        `json:"guardian" gorm:"embedded"`
 }
 
@@ -82,7 +82,7 @@ func NewStudent(c *fiber.Ctx) error {
 		student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
 
 		if err == nil {
-			if database.DBConn.Create(&student).Error == nil {
+			if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Create(&student).Error == nil {
 				return fiberUtils.SendSuccessResponse("Created a new student successfully")
 			}
 		}
@@ -98,12 +98,13 @@ func UpdateStudent(c *fiber.Ctx) error {
 	err := fiberUtils.ParseBody(&student)
 
 	if err == nil {
+		student.UserInfo.User.Role = "Student"
 		student.UserInfo.User.Password, err = passwordHashing.HashPassword(student.UserInfo.User.Password)
 		userClaim := user.GetUserInfoFromJWTClaim(c)
 
 		if err == nil {
 			if userClaim.User.ID == student.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-				if database.DBConn.Updates(&student).Error == nil {
+				if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Updates(&student).Error == nil {
 					return fiberUtils.SendSuccessResponse("Updated a student successfully")
 				}
 			} else {
@@ -124,7 +125,7 @@ func DeleteStudent(c *fiber.Ctx) error {
 
 	if err == nil {
 		if userClaim.User.ID == student.UserInfo.User.ID || userClaim.User.Role == "Admin" {
-			if database.DBConn.Delete(&student).Error == nil {
+			if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Delete(&student).Error == nil {
 				return fiberUtils.SendSuccessResponse("Updated a student successfully")
 			}
 		} else {

@@ -188,11 +188,11 @@ func DownloadActivityResultFile(c *fiber.Ctx) error {
 }
 
 func (activityResult *ActivityResult) absoluteServerFilename() string {
-	return fmt.Sprintf("files/activity/%d/results/%d/%s", activityResult.Activity.ID, activityResult.Student.ID, activityResult.Filename)
+	return fmt.Sprintf("files/activities/%d/results/%d/%s", activityResult.Activity.ID, activityResult.Student.ID, activityResult.Filename)
 }
 
 func (activityResult *ActivityResult) absoluteServerDirectory() string {
-	return fmt.Sprintf("files/activity/%d/results/%d", activityResult.Activity.ID, activityResult.Student.ID)
+	return fmt.Sprintf("files/activities/%d/results/%d", activityResult.Activity.ID, activityResult.Student.ID)
 }
 
 // GetActivityResultsByActivityID ...

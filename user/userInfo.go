@@ -184,7 +184,7 @@ func DeleteUserInfo(c *fiber.Ctx) error {
 		}
 
 		if userClaim.User.Role == "Admin" || userClaim.ID == userInfo.ID {
-			if database.DBConn.Delete(&userInfo).Error == nil {
+			if database.DBConn.Session(&gorm.Session{FullSaveAssociations: true}).Delete(&userInfo).Error == nil {
 				return fiberUtils.SendSuccessResponse("User Successfully Deleted")
 			}
 		}
