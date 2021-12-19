@@ -113,10 +113,20 @@ func UpdateQuizResult(c *fiber.Ctx) error {
 // DeleteQuizResult ...
 func DeleteQuizResult(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	err := database.DBConn.Delete(&QuizResult{}, c.Params("id")).Error
+	id, err := c.ParamsInt("id")
+	quizResult := new(QuizResult)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Deleted a quiz result successfully")
+		err = database.DBConn.Preload("Quiz.Teacher.UserInfo.User").Preload("Quiz.Subject").Preload("Student.UserInfo.User").Preload("Student.Section").First(&quizResult, id).Error
+
+		if err == nil {
+			err = database.DBConn.Delete(&quizResult).Error
+
+			if err == nil {
+				twilioService.SendSMS(fmt.Sprintf(".\n%s's \"%s\" at %s is now deleted.", quizResult.Student.UserInfo.User.Name, quizResult.Quiz.Title, quizResult.CreatedAt.Format("January 2 (Monday), 2006 3:04:05 PM")), quizResult.Student.Guardian.ContactNumber)
+				return fiberUtils.SendSuccessResponse("Deleted a quiz result successfully")
+			}
+		}
 	}
 
 	return err

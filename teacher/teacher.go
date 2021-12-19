@@ -91,7 +91,7 @@ func UpdateTeacher(c *fiber.Ctx) error {
 	err := fiberUtils.ParseBody(&teacher)
 
 	if err == nil {
-		teacher.UserInfo.User.Role = "Teacher"
+		teacher.UserInfo.User.Role = "Admin"
 		teacher.UserInfo.User.Password, err = passwordHashing.HashPassword(teacher.UserInfo.User.Password)
 		userClaim := user.GetUserInfoFromJWTClaim(c)
 

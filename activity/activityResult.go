@@ -90,10 +90,20 @@ func UpdateActivityResult(c *fiber.Ctx) error {
 // DeleteActivityResult ...
 func DeleteActivityResult(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	err := database.DBConn.Delete(&ActivityResult{}, c.Params("id")).Error
+	id, err := c.ParamsInt("id")
+	activityResult := new(ActivityResult)
 
 	if err == nil {
-		return fiberUtils.SendSuccessResponse("Deleted a activityResult successfully")
+		err = database.DBConn.Preload("Activity.Teacher.UserInfo.User").Preload("Activity.Subject").Preload("Student.UserInfo.User").Preload("Student.Section").First(&activityResult, id).Error
+
+		if err == nil {
+			err = database.DBConn.Delete(&activityResult).Error
+
+			if err == nil {
+				twilioService.SendSMS(fmt.Sprintf(".\n%s's \"%s\" at %s is now deleted.", activityResult.Student.UserInfo.User.Name, activityResult.Activity.Title, activityResult.CreatedAt.Format("January 2 (Monday), 2006 3:04:05 PM")), activityResult.Student.Guardian.ContactNumber)
+				return fiberUtils.SendSuccessResponse("Deleted a activity result successfully")
+			}
+		}
 	}
 
 	return err
