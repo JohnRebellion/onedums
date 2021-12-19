@@ -113,20 +113,10 @@ func UpdateQuizResult(c *fiber.Ctx) error {
 // DeleteQuizResult ...
 func DeleteQuizResult(c *fiber.Ctx) error {
 	fiberUtils.Ctx.New(c)
-	id, err := c.ParamsInt("id")
-	quizResult := new(QuizResult)
+	err := database.DBConn.Delete(&QuizResult{}, c.Params("id")).Error
 
 	if err == nil {
-		err = database.DBConn.Preload("Quiz.Teacher.UserInfo.User").Preload("Quiz.Subject").Preload("Student.UserInfo.User").Preload("Student.Section").First(&quizResult, id).Error
-
-		if err == nil {
-			err = database.DBConn.Delete(&quizResult).Error
-
-			if err == nil {
-				twilioService.SendSMS(fmt.Sprintf(".\n%s's \"%s\" at %s is now deleted.", quizResult.Student.UserInfo.User.Name, quizResult.Quiz.Title, quizResult.CreatedAt.Format("January 2 (Monday), 2006 3:04:05 PM")), quizResult.Student.Guardian.ContactNumber)
-				return fiberUtils.SendSuccessResponse("Deleted a quiz result successfully")
-			}
-		}
+		return fiberUtils.SendSuccessResponse("Deleted a quiz result successfully")
 	}
 
 	return err
@@ -240,6 +230,34 @@ func GetQuizResultByStudentID(c *fiber.Ctx) error {
 
 	if err == nil {
 		err = database.DBConn.Preload("Quiz.Teacher.UserInfo.User").Preload("Quiz.Subject").Preload("Student.UserInfo.User").Preload("Student.Section").Find(&quizResults, "student_id = ?", studentID).Error
+		userClaim := user.GetUserInfoFromJWTClaim(c)
+
+		if err == nil {
+			for _, quizResult := range quizResults {
+				if quizResult.Quiz.Teacher.UserInfo.User.ID != 0 &&
+					quizResult.Quiz.Subject.ID != 0 &&
+					quizResult.Student.UserInfo.User.ID != 0 &&
+					quizResult.Student.Section.ID != 0 ||
+					userClaim.User.Role == "Admin" {
+					quizResultsFiltered = append(quizResultsFiltered, quizResult)
+				}
+			}
+
+			err = c.JSON(quizResultsFiltered)
+		}
+	}
+
+	return err
+}
+
+// GetQuizResultByQuizID ...
+func GetQuizResultByQuizID(c *fiber.Ctx) error {
+	quizResults := []QuizResult{}
+	quizResultsFiltered := []QuizResult{}
+	quizID, err := c.ParamsInt("quizId")
+
+	if err == nil {
+		err = database.DBConn.Preload("Quiz.Teacher.UserInfo.User").Preload("Quiz.Subject").Preload("Student.UserInfo.User").Preload("Student.Section").Find(&quizResults, "quiz_id = ?", quizID).Error
 		userClaim := user.GetUserInfoFromJWTClaim(c)
 
 		if err == nil {

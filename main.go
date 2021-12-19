@@ -134,6 +134,7 @@ func setupPrivateRoutes(app *fiber.App) {
 	quizResultEndpoint.Put("/", quiz.UpdateQuizResult)
 	quizResultEndpoint.Delete("/:id", quiz.DeleteQuizResult)
 	quizResultEndpoint.Get("/studentId/:studentId", quiz.GetQuizResultByStudentID)
+	quizResultEndpoint.Get("/quizId/:quizId", quiz.GetQuizResultByQuizID)
 	quizResultEndpoint.Get("/progress/studentId/:studentId/subjectId/:subjectId", quiz.GetStudentProgressBySubjectID)
 
 	teacherEndpoint := v1Endpoint.Group("/teacher")
