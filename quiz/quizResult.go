@@ -158,7 +158,7 @@ func CheckQuizResult(c *fiber.Ctx) error {
 
 						if err == nil {
 							if willSendSMS {
-								twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), student.Guardian.ContactNumber)
+								twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f/100%%", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage), student.Guardian.ContactNumber)
 							}
 
 							return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")
@@ -208,7 +208,7 @@ func CheckUpdatedQuizResult(c *fiber.Ctx) error {
 
 						if err == nil {
 							if willSendSMS {
-								twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f%s", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage, "%"), student.Guardian.ContactNumber)
+								twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f/100%%", student.UserInfo.User.Name, quiz.Title, quizResult.Percentage), student.Guardian.ContactNumber)
 							}
 
 							return fiberUtils.SendSuccessResponse("Created a new quiz result successfully")

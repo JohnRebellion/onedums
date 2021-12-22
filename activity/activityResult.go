@@ -233,7 +233,7 @@ func CheckActivityResult(c *fiber.Ctx) error {
 				if willSendSMS {
 					twilioService.SendSMS(fmt.Sprintf(".\n%s's grade on \"%s\": %2.f%s", activityResult.Student.UserInfo.User.Name, activityResult.Activity.Title, activityResult.Percentage, "%"), activityResult.Student.Guardian.ContactNumber)
 				} else {
-					log.Printf(".\n%s's grade on \"%s\": %2.f%s", activityResult.Student.UserInfo.User.Name, activityResult.Activity.Title, activityResult.Percentage, "%")
+					log.Printf(".\n%s's grade on \"%s\": %2.f/100%%", activityResult.Student.UserInfo.User.Name, activityResult.Activity.Title, activityResult.Percentage)
 				}
 
 				return fiberUtils.SendSuccessResponse("Created a new activity result successfully")
